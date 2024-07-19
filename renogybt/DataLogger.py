@@ -24,7 +24,7 @@ class DataLogger:
 
         publish.single(
             self.config['mqtt']['topic'], payload=json.dumps(json_data),
-            hostname=self.config['mqtt']['server'], port=self.config['mqtt'].getint('port'),
+            hostname=self.config['mqtt']['server'], port=self.config['mqtt']['port'],
             auth=auth, client_id="renogy-bt"
         )
 

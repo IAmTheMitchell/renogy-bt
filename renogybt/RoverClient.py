@@ -35,10 +35,9 @@ BATTERY_TYPE = {
 }
 
 class RoverClient(BaseClient):
-    def __init__(self, config, on_data_callback=None, on_error_callback=None):
+    def __init__(self, config, on_data_callback=None):
         super().__init__(config)
         self.on_data_callback = on_data_callback
-        self.on_error_callback = on_error_callback
         self.data = {}
         self.sections = [
             {'register': 12, 'words': 8, 'parser': self.parse_device_info},
@@ -48,7 +47,7 @@ class RoverClient(BaseClient):
         ]
         self.set_load_params = {'function': 6, 'register': 266}
 
-    def on_data_received(self, response):
+    async def on_data_received(self, response):
         operation = bytes_to_int(response, 1, 1)
         if operation == 6: # write operation
             self.parse_set_load_response(response)
@@ -56,7 +55,7 @@ class RoverClient(BaseClient):
             self.data = {}
         else:
             # read is handled in base class
-            super().on_data_received(response)
+            await super().on_data_received(response)
 
     def on_write_operation_complete(self):
         logging.info("on_write_operation_complete")
@@ -66,7 +65,7 @@ class RoverClient(BaseClient):
     def set_load(self, value = 0):
         logging.info("setting load {}".format(value))
         request = self.create_generic_read_request(self.device_id, self.set_load_params["function"], self.set_load_params["register"], value)
-        self.device.characteristic_write_value(request)
+        self.bleManager.characteristic_write_value(request)
 
     def parse_device_info(self, bs):
         data = {}
