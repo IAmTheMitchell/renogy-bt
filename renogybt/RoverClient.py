@@ -42,14 +42,14 @@ class RoverClient(BaseClient):
         self.sections = [
             {'register': 12, 'words': 8, 'parser': self.parse_device_info},
             {'register': 26, 'words': 1, 'parser': self.parse_device_address},
-            {'register': 256, 'words': 34, 'parser': self.parse_chargin_info},
+            {'register': 256, 'words': 34, 'parser': self.parse_charging_info},
             {'register': 57348, 'words': 1, 'parser': self.parse_battery_type}
         ]
         self.set_load_params = {'function': 6, 'register': 266}
 
     async def on_data_received(self, response):
         operation = bytes_to_int(response, 1, 1)
-        if operation == 6: # write operation
+        if operation == 6:  # write operation
             self.parse_set_load_response(response)
             self.on_write_operation_complete()
             self.data = {}
@@ -60,12 +60,12 @@ class RoverClient(BaseClient):
     def on_write_operation_complete(self):
         logging.info("on_write_operation_complete")
         if self.on_data_callback is not None:
-            self.on_data_callback(self, self.data)
+            asyncio.create_task(self.on_data_callback(self, self.data))
 
-    def set_load(self, value = 0):
-        logging.info("setting load {}".format(value))
+    async def set_load(self, value=0):
+        logging.info(f"setting load {value}")
         request = self.create_generic_read_request(self.device_id, self.set_load_params["function"], self.set_load_params["register"], value)
-        self.bleManager.characteristic_write_value(request)
+        await self.bleManager.characteristic_write_value(request)
 
     def parse_device_info(self, bs):
         data = {}
@@ -78,21 +78,21 @@ class RoverClient(BaseClient):
         data['device_id'] = bytes_to_int(bs, 4, 1)
         self.data.update(data)
 
-    def parse_chargin_info(self, bs):
+    def parse_charging_info(self, bs):
         data = {}
         temp_unit = self.config['data']['temperature_unit']
         data['function'] = FUNCTION.get(bytes_to_int(bs, 1, 1))
         data['battery_percentage'] = bytes_to_int(bs, 3, 2)
-        data['battery_voltage'] = bytes_to_int(bs, 5, 2, scale = 0.1)
-        data['battery_current'] = bytes_to_int(bs, 7, 2, scale = 0.01)
+        data['battery_voltage'] = bytes_to_int(bs, 5, 2, scale=0.1)
+        data['battery_current'] = bytes_to_int(bs, 7, 2, scale=0.01)
         data['battery_temperature'] = parse_temperature(bytes_to_int(bs, 10, 1), temp_unit)
         data['controller_temperature'] = parse_temperature(bytes_to_int(bs, 9, 1), temp_unit)
         data['load_status'] = LOAD_STATE.get(bytes_to_int(bs, 67, 1) >> 7)
-        data['load_voltage'] = bytes_to_int(bs, 11, 2, scale = 0.1)
-        data['load_current'] = bytes_to_int(bs, 13, 2, scale = 0.01)
+        data['load_voltage'] = bytes_to_int(bs, 11, 2, scale=0.1)
+        data['load_current'] = bytes_to_int(bs, 13, 2, scale=0.01)
         data['load_power'] = bytes_to_int(bs, 15, 2)
-        data['pv_voltage'] = bytes_to_int(bs, 17, 2, scale = 0.1) 
-        data['pv_current'] = bytes_to_int(bs, 19, 2, scale = 0.01)
+        data['pv_voltage'] = bytes_to_int(bs, 17, 2, scale=0.1)
+        data['pv_current'] = bytes_to_int(bs, 19, 2, scale=0.01)
         data['pv_power'] = bytes_to_int(bs, 21, 2)
         data['max_charging_power_today'] = bytes_to_int(bs, 33, 2)
         data['max_discharging_power_today'] = bytes_to_int(bs, 35, 2)

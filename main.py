@@ -1,6 +1,7 @@
 import logging
 import json
 import configparser
+import asyncio
 from datetime import datetime
 from os import access, R_OK
 from os.path import isfile
@@ -15,11 +16,12 @@ def load_user_config():
     try:
         with open('/data/options.json') as f:
             conf = dotdict(json.load(f))
+        return conf
     except Exception as e:
         print('error reading /data/options.json, trying options.json', e)
         with open('options.json') as f:
             conf = dotdict(json.load(f))
-    return conf
+        return conf
 
 class dotdict(dict):
     def __getattr__(self, attr):
@@ -32,7 +34,7 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 # Set up logger 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
 # Load config
@@ -40,9 +42,6 @@ json_config: Dict[str, any] = load_user_config()
 
 # Test logging
 logger.info(f"Starting renogybtaddon.py - {datetime.now()}")
-
-# Set logger level 
-data_logger: DataLogger = DataLogger(json_config)
 
 # Hard code certain values to config
 json_config["data"]["enable_polling"] = False
@@ -54,29 +53,40 @@ for section, options in json_config.items():
     for key, value in options.items():
         configparser_config.set(section, key, str(value))
 
+# Set logger level 
+data_logger: DataLogger = DataLogger(configparser_config)
+
 # The callback function when data is received
-def on_data_received(client, data):
+async def on_data_received(client, data):
     filtered_data = Utils.filter_fields(data, configparser_config['data']['fields'])
     logging.info(f"{client.bleManager.device.name} => {filtered_data}")
     if configparser_config['remote_logging'].getboolean('enabled'):
-        data_logger.log_remote(json_data=filtered_data)
+        await data_logger.log_remote(json_data=filtered_data)
     if configparser_config['mqtt'].getboolean('enabled'):
-        data_logger.log_mqtt(json_data=filtered_data)
+        await data_logger.log_mqtt(json_data=filtered_data)
     if configparser_config['pvoutput'].getboolean('enabled') and configparser_config['device']['type'] == 'RNG_CTRL':
-        data_logger.log_pvoutput(json_data=filtered_data)
-    if not configparser_config['data'].getboolean('enable_polling'):
-        client.stop()
+        await data_logger.log_pvoutput(json_data=filtered_data)
+    await client.stop()
 
 # Start client
 # TODO: Convert to run with multiple devices
-# logger.info(f"Device type: {configparser_config["device"]["type"]}")
-if configparser_config['device']['type'] == 'RNG_CTRL':
-    RoverClient(configparser_config, on_data_received).start()
-elif configparser_config['device']['type'] == 'RNG_CTRL_HIST':
-    RoverHistoryClient(configparser_config, on_data_received).start()
-elif configparser_config['device']['type'] == 'RNG_BATT':
-    BatteryClient(configparser_config, on_data_received).start()
-elif configparser_config['device']['type'] == 'RNG_INVT':
-    InverterClient(configparser_config, on_data_received).start()
-else:
-    logging.error("unknown device type")
+async def start_client():
+    logger.info(f"Device type: {configparser_config['device']['type']}")
+    if configparser_config['device']['type'] == 'RNG_CTRL':
+        await RoverClient(configparser_config, on_data_received).start()
+    elif configparser_config['device']['type'] == 'RNG_CTRL_HIST':
+        await RoverHistoryClient(configparser_config, on_data_received).start()
+    elif configparser_config['device']['type'] == 'RNG_BATT':
+        await BatteryClient(configparser_config, on_data_received).start()
+    elif configparser_config['device']['type'] == 'RNG_INVT':
+        await InverterClient(configparser_config, on_data_received).start()
+    else:
+        logging.error("unknown device type")
+
+async def main():
+    while True:
+        await start_client()
+        await asyncio.sleep(10)
+
+if __name__ == "__main__":
+    asyncio.run(main())

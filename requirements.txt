@@ -1,4 +1,4 @@
+aiohttp
+aiomqtt
 bleak
 configparser
-requests
-paho-mqtt
