@@ -33,18 +33,14 @@ class dotdict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
-# Set up logger 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-
 # Load config
 json_config: Dict[str, any] = load_user_config()
 
-# Test logging
+# Set up logger
+log_level = logging.getLevelName(json_config["data"]["log_level"])
+logging.basicConfig(level=log_level)
+logger = logging.getLogger()
 logger.info(f"Starting renogybtaddon.py - {datetime.now()}")
-
-# Hard code certain values to config
-json_config["data"]["enable_polling"] = False
 
 # Convert json config object (cyrils/renogy-bt built to use configparser)
 configparser_config = configparser.ConfigParser()
@@ -53,7 +49,7 @@ for section, options in json_config.items():
     for key, value in options.items():
         configparser_config.set(section, key, str(value))
 
-# Set logger level 
+# Set up remote logging
 data_logger: DataLogger = DataLogger(configparser_config)
 
 # The callback function when data is received
