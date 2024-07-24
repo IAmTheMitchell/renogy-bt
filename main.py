@@ -82,7 +82,7 @@ async def start_client():
 async def main():
     while True:
         await start_client()
-        await asyncio.sleep(10)
+        await asyncio.sleep(configparser_config["data"].getint("poll_interval"))
 
 if __name__ == "__main__":
     asyncio.run(main())
