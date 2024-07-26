@@ -64,23 +64,27 @@ async def on_data_received(client, data):
 
 
 # Start client
-async def start_client():
-    logger.info(f"Device type: {config['device']['type']}")
-    if config["device"]["type"] == "RNG_CTRL":
-        await RoverClient(config, on_data_received).start()
-    elif config["device"]["type"] == "RNG_CTRL_HIST":
-        await RoverHistoryClient(config, on_data_received).start()
-    elif config["device"]["type"] == "RNG_BATT":
-        await BatteryClient(config, on_data_received).start()
-    elif config["device"]["type"] == "RNG_INVT":
-        await InverterClient(config, on_data_received).start()
+async def start_client(device_config):
+    logger.info(f"Device alias: {device_config['device']['alias']}")
+    logger.info(f"Device type: {device_config['device']['type']}")
+    if device_config["device"]["type"] == "RNG_CTRL":
+        await RoverClient(device_config, on_data_received).start()
+    elif device_config["device"]["type"] == "RNG_CTRL_HIST":
+        await RoverHistoryClient(device_config, on_data_received).start()
+    elif device_config["device"]["type"] == "RNG_BATT":
+        await BatteryClient(device_config, on_data_received).start()
+    elif device_config["device"]["type"] == "RNG_INVT":
+        await InverterClient(device_config, on_data_received).start()
     else:
         logging.error("unknown device type")
 
 
 async def main():
     while True:
-        await start_client()
+        for device in config["devices"]:
+            device_config = config
+            device_config["device"] = device
+            await start_client(device_config)
         await asyncio.sleep(config["data"]["poll_interval"])
 
 
