@@ -1,4 +1,3 @@
 aiohttp
 aiomqtt
 bleak
-configparser

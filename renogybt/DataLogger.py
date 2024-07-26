@@ -3,14 +3,13 @@ import logging
 import aiohttp
 import asyncio
 from aiomqtt import Client
-from configparser import ConfigParser
 from datetime import datetime
 
 PVOUTPUT_URL = "http://pvoutput.org/service/r2/addstatus.jsp"
 
 
 class DataLogger:
-    def __init__(self, config: ConfigParser):
+    def __init__(self, config):
         self.config = config
 
     async def log_remote(self, json_data):
@@ -31,12 +30,12 @@ class DataLogger:
 
     async def log_mqtt(self, json_data):
         logging.info(f"mqtt logging")
-        user = self.config["mqtt"].get("user")
-        password = self.config["mqtt"].get("password")
+        user = self.config["mqtt"]["user"]
+        password = self.config["mqtt"]["password"]
 
         async with Client(
             self.config["mqtt"]["server"],
-            port=self.config["mqtt"].getint("port"),
+            port=self.config["mqtt"]["port"],
             username=user,
             password=password,
             identifier="renogy-bt",

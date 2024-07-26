@@ -1,5 +1,4 @@
 import asyncio
-import configparser
 import logging
 from .BLEManager import BLEManager
 from .Utils import bytes_to_int, crc16_modbus, int_to_bytes
@@ -16,13 +15,13 @@ READ_TIMEOUT = 15  # (seconds)
 
 class BaseClient:
     def __init__(self, config):
-        self.config: configparser.ConfigParser = config
+        self.config = config
         self.bleManager = None
         self.device = None
         self.poll_timer = None
         self.read_timeout = None
         self.data = {}
-        self.device_id = self.config["device"].getint("device_id")
+        self.device_id = self.config["device"]["device_id"]
         self.sections = []
         self.section_index = 0
         self.loop = asyncio.get_event_loop()
@@ -108,8 +107,8 @@ class BaseClient:
         asyncio.create_task(self.stop())
 
     async def check_polling(self):
-        if self.config["data"].getboolean("enable_polling"):
-            await asyncio.sleep(self.config["data"].getint("poll_interval"))
+        if bool(self.config["data"]["enable_polling"]):
+            await asyncio.sleep(self.config["data"]["poll_interval"])
             await self.read_section()
 
     async def read_section(self):
