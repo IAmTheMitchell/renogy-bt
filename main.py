@@ -40,6 +40,9 @@ logging.basicConfig(level=log_level)
 logger = logging.getLogger()
 logger.info(f"Starting renogybtaddon.py - {datetime.now()}")
 
+# Disable script polling
+config["data"]["enable_polling"] = False
+
 # Set up remote logging
 data_logger: DataLogger = DataLogger(config)
 
@@ -61,7 +64,6 @@ async def on_data_received(client, data):
 
 
 # Start client
-# TODO: Convert to run with multiple devices
 async def start_client():
     logger.info(f"Device type: {config['device']['type']}")
     if config["device"]["type"] == "RNG_CTRL":
