@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from .BaseClient import BaseClient
 from .Utils import bytes_to_int, parse_temperature
 
