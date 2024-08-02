@@ -2,6 +2,7 @@ import json
 import logging
 import aiohttp
 import asyncio
+import string
 from aiomqtt import Client
 from datetime import datetime
 
@@ -11,6 +12,7 @@ PVOUTPUT_URL = "http://pvoutput.org/service/r2/addstatus.jsp"
 class DataLogger:
     def __init__(self, config):
         self.config = config
+        self.published_devices = set()
 
     async def log_remote(self, json_data):
         headers = {
@@ -28,10 +30,71 @@ class DataLogger:
                 else:
                     logging.error(f"Log remote error {req.status}")
 
+    async def create_mqtt_device(self, client, device_data, device_name, device_model, topic):
+        logging.info(f"Publishing MQTT device to Home Assistant discovery: {device_name}")
+
+        # Clean up fields before publishing
+        remove_fields = ["function", "model", "device_id", "__device", "__client"]
+        for field in remove_fields:
+            device_data.pop(field)
+
+        for entity in device_data:
+            discovery_topic = f"homeassistant/sensor/{device_name}_{entity}/config"
+
+            name = string.capwords(entity.replace("_", " ")).replace("Pv", "PV")
+
+            payload = {
+                "name": name,
+                "state_topic": f"renogy/{device_model}/{device_name}",
+                "value_template":f"{{{{ value_json.{entity}}}}}",
+                "unique_id": f"{device_name}_{entity}",
+                "device": {
+                    "identifiers": [device_name],
+                    "name": device_name,
+                    "model": device_model,
+                    "manufacturer": "Renogy"
+                }
+            }
+
+            # Entity specific configuration
+            if "current" in entity:
+                payload["device_class"] = 'current'
+                payload["unit_of_measurement"] = 'A'
+            elif "percent" in entity:
+                payload["device_class"] = 'battery'
+                payload["unit_of_measurement"] = '%'
+            elif "voltage" in entity:
+                payload["device_class"] = 'voltage'
+                payload["unit_of_measurement"] = 'V'
+            elif "amp_hour" in entity:
+                payload["unit_of_measurement"] = 'ah'
+            elif "temperature" in entity:
+                payload["device_class"] = 'temperature'
+                payload["unit_of_measurement"] = '°F'
+            elif 'power' in entity:
+                payload["device_class"] = 'power'
+                payload["unit_of_measurement"] = 'W'
+
+            try:
+                await client.publish(
+                    discovery_topic,
+                    payload=json.dumps(payload),
+                    qos=0,
+                    retain=True,
+                )
+            except Exception as e:
+                logging.error(f"MQTT connection error: {e}")
+
+        # Add device to published list
+        self.published_devices.add(device_name)
+
     async def log_mqtt(self, json_data):
-        logging.info(f"mqtt logging")
+        logging.info(f"Logging {json_data['__device']} to MQTT")
         user = self.config["mqtt"]["user"]
         password = self.config["mqtt"]["password"]
+        device_name = json_data['__device']
+        device_model = json_data['model']
+        topic = f"renogy/{device_model}/{device_name}"
 
         async with Client(
             self.config["mqtt"]["server"],
@@ -40,12 +103,16 @@ class DataLogger:
             password=password,
             identifier="renogy-bt",
         ) as client:
+            # Create Home Assistant device if new device
+            if device_name not in self.published_devices:
+                await self.create_mqtt_device(client, json_data, device_name, device_model, topic)
+            # Publish metrics to MQTT
             try:
                 await client.publish(
-                    self.config["mqtt"]["topic"],
+                    topic,
                     payload=json.dumps(json_data),
                     qos=0,
-                    retain=False,
+                    retain=True,
                 )
             except Exception as e:
                 logging.error(f"MQTT connection error: {e}")
