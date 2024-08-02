@@ -30,8 +30,12 @@ class DataLogger:
                 else:
                     logging.error(f"Log remote error {req.status}")
 
-    async def create_mqtt_device(self, client, device_data, device_name, device_model, topic):
-        logging.info(f"Publishing MQTT device to Home Assistant discovery: {device_name}")
+    async def create_mqtt_device(
+        self, client, device_data, device_name, device_model, topic
+    ):
+        logging.info(
+            f"Publishing MQTT device to Home Assistant discovery: {device_name}"
+        )
 
         # Clean up fields before publishing
         remove_fields = ["function", "model", "device_id", "__device", "__client"]
@@ -46,34 +50,34 @@ class DataLogger:
             payload = {
                 "name": name,
                 "state_topic": f"renogy/{device_model}/{device_name}",
-                "value_template":f"{{{{ value_json.{entity}}}}}",
+                "value_template": f"{{{{ value_json.{entity}}}}}",
                 "unique_id": f"{device_name}_{entity}",
                 "device": {
                     "identifiers": [device_name],
                     "name": device_name,
                     "model": device_model,
-                    "manufacturer": "Renogy"
-                }
+                    "manufacturer": "Renogy",
+                },
             }
 
             # Entity specific configuration
             if "current" in entity:
-                payload["device_class"] = 'current'
-                payload["unit_of_measurement"] = 'A'
+                payload["device_class"] = "current"
+                payload["unit_of_measurement"] = "A"
             elif "percent" in entity:
-                payload["device_class"] = 'battery'
-                payload["unit_of_measurement"] = '%'
+                payload["device_class"] = "battery"
+                payload["unit_of_measurement"] = "%"
             elif "voltage" in entity:
-                payload["device_class"] = 'voltage'
-                payload["unit_of_measurement"] = 'V'
+                payload["device_class"] = "voltage"
+                payload["unit_of_measurement"] = "V"
             elif "amp_hour" in entity:
-                payload["unit_of_measurement"] = 'ah'
+                payload["unit_of_measurement"] = "ah"
             elif "temperature" in entity:
-                payload["device_class"] = 'temperature'
-                payload["unit_of_measurement"] = '°F'
-            elif 'power' in entity:
-                payload["device_class"] = 'power'
-                payload["unit_of_measurement"] = 'W'
+                payload["device_class"] = "temperature"
+                payload["unit_of_measurement"] = "°F"
+            elif "power" in entity:
+                payload["device_class"] = "power"
+                payload["unit_of_measurement"] = "W"
 
             try:
                 await client.publish(
@@ -92,8 +96,8 @@ class DataLogger:
         logging.info(f"Logging {json_data['__device']} to MQTT")
         user = self.config["mqtt"]["user"]
         password = self.config["mqtt"]["password"]
-        device_name = json_data['__device']
-        device_model = json_data['model']
+        device_name = json_data["__device"]
+        device_model = json_data["model"]
         topic = f"renogy/{device_model}/{device_name}"
 
         async with Client(
@@ -105,7 +109,9 @@ class DataLogger:
         ) as client:
             # Create Home Assistant device if new device
             if device_name not in self.published_devices:
-                await self.create_mqtt_device(client, json_data, device_name, device_model, topic)
+                await self.create_mqtt_device(
+                    client, json_data, device_name, device_model, topic
+                )
             # Publish metrics to MQTT
             try:
                 await client.publish(
