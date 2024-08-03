@@ -1,9 +1,7 @@
 import json
 import logging
 import aiohttp
-import asyncio
 import string
-from aiomqtt import Client
 from datetime import datetime
 
 PVOUTPUT_URL = "http://pvoutput.org/service/r2/addstatus.jsp"
@@ -13,6 +11,9 @@ class DataLogger:
     def __init__(self, config):
         self.config = config
         self.published_devices = set()
+
+    def set_mqtt_client(self, mqtt_client):
+        self.mqtt_client = mqtt_client
 
     async def log_remote(self, json_data):
         headers = {
@@ -30,9 +31,7 @@ class DataLogger:
                 else:
                     logging.error(f"Log remote error {req.status}")
 
-    async def create_mqtt_device(
-        self, client, device_data, device_name, device_model, topic
-    ):
+    async def create_mqtt_device(self, device_data, device_name, device_model, topic):
         logging.info(
             f"Publishing MQTT device to Home Assistant discovery: {device_name}"
         )
@@ -49,7 +48,7 @@ class DataLogger:
 
             payload = {
                 "name": name,
-                "state_topic": f"renogy/{device_model}/{device_name}",
+                "state_topic": topic,
                 "value_template": f"{{{{ value_json.{entity}}}}}",
                 "unique_id": f"{device_name}_{entity}",
                 "device": {
@@ -80,7 +79,7 @@ class DataLogger:
                 payload["unit_of_measurement"] = "W"
 
             try:
-                await client.publish(
+                await self.mqtt_client.publish(
                     discovery_topic,
                     payload=json.dumps(payload),
                     qos=0,
@@ -94,34 +93,23 @@ class DataLogger:
 
     async def log_mqtt(self, json_data):
         logging.info(f"Logging {json_data['__device']} to MQTT")
-        user = self.config["mqtt"]["user"]
-        password = self.config["mqtt"]["password"]
         device_name = json_data["__device"]
         device_model = json_data["model"]
         topic = f"renogy/{device_model}/{device_name}"
 
-        async with Client(
-            self.config["mqtt"]["server"],
-            port=self.config["mqtt"]["port"],
-            username=user,
-            password=password,
-            identifier="renogy-bt",
-        ) as client:
-            # Create Home Assistant device if new device
-            if device_name not in self.published_devices:
-                await self.create_mqtt_device(
-                    client, json_data, device_name, device_model, topic
-                )
-            # Publish metrics to MQTT
-            try:
-                await client.publish(
-                    topic,
-                    payload=json.dumps(json_data),
-                    qos=0,
-                    retain=True,
-                )
-            except Exception as e:
-                logging.error(f"MQTT connection error: {e}")
+        # Create Home Assistant device if new device
+        if device_name not in self.published_devices:
+            await self.create_mqtt_device(json_data, device_name, device_model, topic)
+        # Publish metrics to MQTT
+        try:
+            await self.mqtt_client.publish(
+                topic,
+                payload=json.dumps(json_data),
+                qos=0,
+                retain=True,
+            )
+        except Exception as e:
+            logging.error(f"MQTT connection error: {e}")
 
     async def log_pvoutput(self, json_data):
         date_time = datetime.now().strftime("d=%Y%m%d&t=%H:%M")

@@ -1,6 +1,7 @@
 import logging
 import json
 import asyncio
+import aiomqtt
 from datetime import datetime
 from os import access, R_OK
 from os.path import isfile
@@ -47,6 +48,19 @@ config["data"]["enable_polling"] = False
 data_logger: DataLogger = DataLogger(config)
 
 
+async def poll_devices(config):
+    try:
+        while True:
+            tasks = [
+                start_client({**config, "device": device})
+                for device in config["devices"]
+            ]
+            await asyncio.gather(*tasks)
+            await asyncio.sleep(config["data"]["poll_interval"])
+    except Exception as e:
+        logging.error(f"Error in main loop: {e}")
+
+
 # The callback function when data is received
 async def on_data_received(client, data):
     filtered_data = Utils.filter_fields(data, config["data"]["fields"])
@@ -77,12 +91,19 @@ async def start_client(device_config):
 
 
 async def main():
-    while True:
-        tasks = [
-            start_client({**config, "device": device}) for device in config["devices"]
-        ]
-        await asyncio.gather(*tasks)
-        await asyncio.sleep(config["data"]["poll_interval"])
+    if config["mqtt"]["enabled"]:
+        async with aiomqtt.Client(
+            config["mqtt"]["server"],
+            port=config["mqtt"]["port"],
+            username=config["mqtt"]["user"],
+            password=config["mqtt"]["password"],
+            identifier="renogy-bt",
+        ) as mqtt_client:
+            data_logger.set_mqtt_client(mqtt_client)
+
+            await poll_devices(config)
+    else:
+        await poll_devices(config)
 
 
 if __name__ == "__main__":
