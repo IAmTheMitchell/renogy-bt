@@ -55,21 +55,21 @@ def shutdown():
 
 
 async def poll_devices(config):
-    # try:
-    while not shutdown_event.is_set():
-        tasks = [
-            start_client({**config, "device": device})
-            for device in config["devices"]
-        ]
-        await asyncio.gather(*tasks)
-        try:
-            await asyncio.wait_for(
-                shutdown_event.wait(), timeout=config["data"]["poll_interval"]
-            )
-        except TimeoutError:
-            pass
-    # except Exception as e:
-    #     logging.error(f"Error in main loop: {e}")
+    try:
+        while not shutdown_event.is_set():
+            tasks = [
+                start_client({**config, "device": device})
+                for device in config["devices"]
+            ]
+            await asyncio.gather(*tasks)
+            try:
+                await asyncio.wait_for(
+                    shutdown_event.wait(), timeout=config["data"]["poll_interval"]
+                )
+            except TimeoutError:
+                pass
+    except Exception as e:
+        logging.error(f"Error in main loop: {e}")
 
 
 # The callback function when data is received
