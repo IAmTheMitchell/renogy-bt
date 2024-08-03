@@ -18,10 +18,6 @@ from renogybt import (
 )
 
 
-def is_readable(file):
-    return isfile(file) and access(file, R_OK)
-
-
 def load_user_config():
     try:
         with open("/data/options.json") as f:
