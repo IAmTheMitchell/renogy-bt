@@ -55,10 +55,7 @@ async def on_data_received(client, data):
         await data_logger.log_remote(json_data=filtered_data)
     if config["mqtt"]["enabled"]:
         await data_logger.log_mqtt(json_data=filtered_data)
-    if (
-        config["pvoutput"]["enabled"]
-        and config["device"]["type"] == "RNG_CTRL"
-    ):
+    if config["pvoutput"]["enabled"] and config["device"]["type"] == "RNG_CTRL":
         await data_logger.log_pvoutput(json_data=filtered_data)
     await client.stop()
 
@@ -81,10 +78,10 @@ async def start_client(device_config):
 
 async def main():
     while True:
-        for device in config["devices"]:
-            device_config = config
-            device_config["device"] = device
-            await start_client(device_config)
+        tasks = [
+            start_client({**config, "device": device}) for device in config["devices"]
+        ]
+        await asyncio.gather(*tasks)
         await asyncio.sleep(config["data"]["poll_interval"])
 
 
