@@ -1,7 +1,9 @@
-import logging
-import json
-import asyncio
 import aiomqtt
+import asyncio
+import atexit
+import json
+import logging
+import signal
 from datetime import datetime
 from os import access, R_OK
 from os.path import isfile
@@ -47,16 +49,26 @@ config["data"]["enable_polling"] = False
 # Set up remote logging
 data_logger: DataLogger = DataLogger(config)
 
+# Event to signal shutdown
+shutdown_event = asyncio.Event()
+
+
+def shutdown():
+    logger.warning("Exit signal received. Shutting down.")
+    shutdown_event.set()
+
 
 async def poll_devices(config):
     try:
-        while True:
+        while not shutdown_event.is_set():
             tasks = [
                 start_client({**config, "device": device})
                 for device in config["devices"]
             ]
             await asyncio.gather(*tasks)
-            await asyncio.sleep(config["data"]["poll_interval"])
+            await asyncio.wait_for(
+                shutdown_event.wait(), timeout=config["data"]["poll_interval"]
+            )
     except Exception as e:
         logging.error(f"Error in main loop: {e}")
 
@@ -100,11 +112,17 @@ async def main():
             identifier="renogy-bt",
         ) as mqtt_client:
             data_logger.set_mqtt_client(mqtt_client)
-
             await poll_devices(config)
     else:
         await poll_devices(config)
 
 
 if __name__ == "__main__":
+    # Register the shutdown function
+    atexit.register(shutdown)
+
+    # Handle termination signals
+    signal.signal(signal.SIGINT, lambda sig, frame: shutdown())
+    signal.signal(signal.SIGTERM, lambda sig, frame: shutdown())
+
     asyncio.run(main())
