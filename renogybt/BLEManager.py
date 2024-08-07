@@ -64,11 +64,11 @@ class BLEManager:
                         await self.client.start_notify(
                             characteristic, self.notification_callback
                         )
-                        logging.info(
+                        logging.debug(
                             f"subscribed to notification {characteristic.uuid}"
                         )
                     if characteristic.uuid == self.write_char_uuid:
-                        logging.info(
+                        logging.debug(
                             f"found write characteristic {characteristic.uuid}"
                         )
 
@@ -77,17 +77,17 @@ class BLEManager:
             self.connect_fail_callback(e)
 
     async def notification_callback(self, characteristic, data: bytearray):
-        logging.info("notification_callback")
+        logging.debug("notification_callback")
         await self.data_callback(data)
 
     async def characteristic_write_value(self, data):
         try:
-            logging.info(f"writing to {self.write_char_uuid} {data}")
+            logging.debug(f"writing to {self.write_char_uuid} {data}")
             await self.client.write_gatt_char(self.write_char_uuid, bytearray(data))
-            logging.info("characteristic_write_value succeeded")
+            logging.debug("characteristic_write_value succeeded")
             await asyncio.sleep(0.5)
         except Exception as e:
-            logging.info(f"characteristic_write_value failed {e}")
+            logging.warning(f"characteristic_write_value failed {e}")
 
     async def disconnect(self):
         if self.client and self.client.is_connected:

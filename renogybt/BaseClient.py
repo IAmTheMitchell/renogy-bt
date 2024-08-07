@@ -72,7 +72,7 @@ class BaseClient:
         operation = bytes_to_int(response, 1, 1)
 
         if operation == 3:  # read operation
-            logging.info(f"on_data_received: response for read operation")
+            logging.debug(f"on_data_received: response for read operation")
             if (
                 self.section_index < len(self.sections)
                 and self.sections[self.section_index]["parser"]
@@ -96,7 +96,7 @@ class BaseClient:
             logging.warn("on_data_received: unknown operation={}".format(operation))
 
     def on_read_operation_complete(self):
-        logging.info("on_read_operation_complete")
+        logging.debug("on_read_operation_complete")
         self.data["__device"] = self.config["device"]["alias"]
         self.data["__client"] = self.__class__.__name__
         if self.on_data_callback:
