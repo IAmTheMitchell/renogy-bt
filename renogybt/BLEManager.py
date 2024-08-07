@@ -39,28 +39,18 @@ class BLEManager:
 
     async def connect(self, lock):
         try:
-
             # Trying to establish a connection to two devices at the same time
             # can cause errors, so use a lock to avoid this.
             async with lock:
-                logging.info(
-                    f"Scanning for {self.device_alias} - {self.mac_address}"
-                )
-
+                logging.info(f"Scanning for {self.device_alias} - {self.mac_address}")
                 device = await self.discover()
-
                 logging.info(f"Stopped scanning for {self.device_alias}")
-
                 if device is None:
                     logging.error(f"{self.device_alias} not found")
                     return
-
                 self.client = BleakClient(device)
-
                 logging.info(f"Connecting to {self.device_alias}")
-
                 await self.client.connect()
-
                 logging.info(f"Connected to {self.device_alias}")
 
             for service in self.client.services:
