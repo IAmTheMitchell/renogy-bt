@@ -65,12 +65,17 @@ async def poll_devices(config):
                     await BLEManager.discover(config)
                     break
 
-            tasks = [
-                start_client({**config, "device": device})
-                for device in config["devices"]
-            ]
-            await asyncio.gather(*tasks)
+            # tasks = [
+            #     start_client({**config, "device": device})
+            #     for device in config["devices"]
+            # ]
+            # await asyncio.gather(*tasks)
+
+            for device in config["devices"]:
+                await start_client({**config, "device": device})
+
             try:
+                logger.info(f"Sleeping for {config['data']['poll_interval']}")
                 await asyncio.wait_for(
                     shutdown_event.wait(), timeout=config["data"]["poll_interval"]
                 )
