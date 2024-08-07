@@ -73,6 +73,7 @@ async def poll_devices(config):
 
             for device in config["devices"]:
                 await start_client({**config, "device": device})
+                logger.info(f"Polling complete for {device['alias']}")
 
             try:
                 logger.info(f"Sleeping for {config['data']['poll_interval']}")
