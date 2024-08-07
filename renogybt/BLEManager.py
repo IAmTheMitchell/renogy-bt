@@ -73,7 +73,7 @@ class BLEManager:
                         )
 
         except Exception as e:
-            logging.error(f"Error connecting: {e}, exc_info=True")
+            logging.error(f"Error connecting: {e}", exc_info=True)
             self.connect_fail_callback(e)
 
     async def notification_callback(self, characteristic, data: bytearray):
