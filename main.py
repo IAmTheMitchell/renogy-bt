@@ -13,6 +13,7 @@ from renogybt import (
     RoverClient,
     RoverHistoryClient,
     BatteryClient,
+    BLEManager,
     DataLogger,
     Utils,
 )
@@ -56,8 +57,14 @@ def shutdown():
 
 async def poll_devices(config):
     config["lock"] = asyncio.Lock()
+
     try:
         while not shutdown_event.is_set():
+            for device in config["devices"]:
+                if not device.get("bleak_device"):
+                    await BLEManager.discover(config)
+                    break
+
             tasks = [
                 start_client({**config, "device": device})
                 for device in config["devices"]

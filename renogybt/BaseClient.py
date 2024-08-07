@@ -39,6 +39,7 @@ class BaseClient:
 
     async def connect(self):
         self.bleManager = BLEManager(
+            bleak_device=self.config["device"]["bleak_device"],
             mac_address=self.config["device"]["mac_addr"],
             alias=self.config["device"]["alias"],
             on_data=self.on_data_received,

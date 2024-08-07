@@ -7,9 +7,33 @@ from bleak import BleakClient, BleakScanner, BLEDevice
 DISCOVERY_TIMEOUT = 5  # max wait time to complete the bluetooth scanning (seconds)
 
 
+async def discover(config):
+    lock = config["lock"]
+    async with lock:
+        logging.info("Starting discovery...")
+        discovered_devices = await BleakScanner.discover(timeout=5)
+        logging.info(f"Devices found: {len(discovered_devices)}")
+
+    for dev in discovered_devices:
+        for config_device in config["devices"]:
+            if dev.address != None and (
+                dev.address.upper() == config_device["mac_addr"]
+                or (dev.name and dev.name.strip() == config_device["alias"])
+            ):
+                logging.info(f"Found matching device {dev.name} => {dev.address}")
+                config_device["bleak_device"] = dev
+
+
 class BLEManager:
     def __init__(
-        self, mac_address, alias, on_data, on_connect_fail, notify_uuid, write_uuid
+        self,
+        bleak_device,
+        mac_address,
+        alias,
+        on_data,
+        on_connect_fail,
+        notify_uuid,
+        write_uuid,
     ):
         self.mac_address = mac_address
         self.device_alias = alias
@@ -17,38 +41,19 @@ class BLEManager:
         self.connect_fail_callback = on_connect_fail
         self.notify_char_uuid = notify_uuid
         self.write_char_uuid = write_uuid
-        self.device: BLEDevice = None
+        self.device: BLEDevice = bleak_device
         self.client: BleakClient = None
         self.discovered_devices = []
-
-    async def discover(self):
-        mac_address = self.mac_address.upper()
-        logging.info("Starting discovery...")
-        self.discovered_devices = await BleakScanner.discover(timeout=DISCOVERY_TIMEOUT)
-        logging.info("Devices found: %s", len(self.discovered_devices))
-
-        for dev in self.discovered_devices:
-            if dev.address != None and (
-                dev.address.upper() == mac_address
-                or (dev.name and dev.name.strip() == self.device_alias)
-            ):
-                logging.info(f"Found matching device {dev.name} => {dev.address}")
-                self.device = dev
-
-                return dev
 
     async def connect(self, lock):
         try:
             # Trying to establish a connection to two devices at the same time
             # can cause errors, so use a lock to avoid this.
             async with lock:
-                logging.info(f"Scanning for {self.device_alias} - {self.mac_address}")
-                device = await self.discover()
-                logging.info(f"Stopped scanning for {self.device_alias}")
-                if device is None:
+                if self.device is None:
                     logging.error(f"{self.device_alias} not found")
                     return
-                self.client = BleakClient(device)
+                self.client = BleakClient(self.device)
                 logging.info(f"Connecting to {self.device_alias}")
                 await self.client.connect()
                 logging.info(f"Connected to {self.device_alias}")
