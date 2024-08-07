@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import contextlib
+import time
 from bleak import BleakClient, BleakScanner, BLEDevice
 
 DISCOVERY_TIMEOUT = 5  # max wait time to complete the bluetooth scanning (seconds)
@@ -33,16 +35,33 @@ class BLEManager:
                 logging.info(f"Found matching device {dev.name} => {dev.address}")
                 self.device = dev
 
-    async def connect(self):
-        if not self.device:
-            return logging.error("No device connected!")
+                return dev
 
-        self.client = BleakClient(self.device)
+    async def connect(self, lock):
         try:
-            await self.client.connect()
-            logging.info(f"Client connection: {self.client.is_connected}")
-            if not self.client.is_connected:
-                return logging.error("Unable to conect")
+
+            # Trying to establish a connection to two devices at the same time
+            # can cause errors, so use a lock to avoid this.
+            async with lock:
+                logging.info(
+                    f"Scanning for {self.device_alias} - {self.mac_address}"
+                )
+
+                device = await self.discover()
+
+                logging.info(f"Stopped scanning for {self.device_alias}")
+
+                if device is None:
+                    logging.error(f"{self.device_alias} not found")
+                    return
+
+                self.client = BleakClient(device)
+
+                logging.info(f"Connecting to {self.device_alias}")
+
+                await self.client.connect()
+
+                logging.info(f"Connected to {self.device_alias}")
 
             for service in self.client.services:
                 for characteristic in service.characteristics:
@@ -57,6 +76,7 @@ class BLEManager:
                         logging.info(
                             f"found write characteristic {characteristic.uuid}"
                         )
+
         except Exception as e:
             logging.error(f"Error connecting: {e}")
             self.connect_fail_callback(e)

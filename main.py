@@ -55,6 +55,7 @@ def shutdown():
 
 
 async def poll_devices(config):
+    config["lock"] = asyncio.Lock()
     try:
         while not shutdown_event.is_set():
             tasks = [

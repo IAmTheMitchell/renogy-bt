@@ -46,8 +46,8 @@ class BaseClient:
             notify_uuid=NOTIFY_CHAR_UUID,
             write_uuid=WRITE_CHAR_UUID,
         )
-        await self.bleManager.discover()
 
+        await self.bleManager.connect(lock=self.config["lock"])
         if not self.bleManager.device:
             logging.error(
                 f"Device not found: {self.config['device']['alias']} => {self.config['device']['mac_addr']}, please check the details provided."
@@ -59,7 +59,6 @@ class BaseClient:
                     )
             await self.stop()
         else:
-            await self.bleManager.connect()
             if self.bleManager.client and self.bleManager.client.is_connected:
                 await self.read_section()
 
