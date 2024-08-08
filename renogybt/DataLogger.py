@@ -79,7 +79,7 @@ class DataLogger:
                 payload["device_class"] = "temperature"
                 payload["unit_of_measurement"] = "°F"
                 payload["state_class"] = "measurement"
-            elif "max_charging" in entity:
+            elif "charging_power" in entity:
                 payload["device_class"] = "power"
                 payload["unit_of_measurement"] = "W"
                 payload["state_class"] = "total_increasing"
