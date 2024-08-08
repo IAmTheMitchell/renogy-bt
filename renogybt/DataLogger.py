@@ -63,20 +63,34 @@ class DataLogger:
             if "current" in entity:
                 payload["device_class"] = "current"
                 payload["unit_of_measurement"] = "A"
+                payload["state_class"] = "measurement"
             elif "percent" in entity:
                 payload["device_class"] = "battery"
                 payload["unit_of_measurement"] = "%"
+                payload["state_class"] = "measurement"
             elif "voltage" in entity:
                 payload["device_class"] = "voltage"
                 payload["unit_of_measurement"] = "V"
+                payload["state_class"] = "measurement"
             elif "amp_hour" in entity:
                 payload["unit_of_measurement"] = "ah"
+                payload["state_class"] = "total_increasing"
             elif "temperature" in entity:
                 payload["device_class"] = "temperature"
                 payload["unit_of_measurement"] = "°F"
-            elif "power" in entity:
+                payload["state_class"] = "measurement"
+            elif "max_charging" in entity:
                 payload["device_class"] = "power"
                 payload["unit_of_measurement"] = "W"
+                payload["state_class"] = "total_increasing"
+            elif "power" in entity and "today" in entity:
+                payload["device_class"] = "energy"
+                payload["unit_of_measurement"] = "Wh"
+                payload["state_class"] = "total_increasing"
+            elif "power" in entity and "total" in entity:
+                payload["device_class"] = "energy"
+                payload["unit_of_measurement"] = "Wh"
+                payload["state_class"] = "total"
 
             try:
                 await self.mqtt_client.publish(
