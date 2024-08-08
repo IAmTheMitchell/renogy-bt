@@ -91,6 +91,10 @@ class DataLogger:
                 payload["device_class"] = "energy"
                 payload["unit_of_measurement"] = "Wh"
                 payload["state_class"] = "total"
+            elif "pv_power" in entity:
+                payload["device_class"] = "energy"
+                payload["unit_of_measurement"] = "W"
+                payload["state_class"] = "measurement"
 
             try:
                 await self.mqtt_client.publish(
